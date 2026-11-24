@@ -34,7 +34,6 @@ from ..compat import (
 )
 from ..errors import CommandError
 from ..registry import command
-from ..sip_member_ref import copy_text_format_component
 from ..wire import zip_strict
 
 _TRUE = ("true", "1", "yes", "on")
@@ -508,13 +507,7 @@ class LayerHandlers:
 
     @command
     def get_layer_labeling(self, layer_id, **kwargs):
-        """Get labeling configuration for a vector layer.
-
-        Text-format member refs (background/buffer/…) are read via a
-        Python-owned copy so a temporary from ``settings()`` cannot leave a
-        dangling SIP wrapper. ``background_enabled`` is ``None`` when the
-        copy cannot be taken.
-        """
+        """Get labeling configuration for a vector layer."""
         layer = self._get_vector_layer(layer_id)
         result = {
             "layer_id": layer_id,
@@ -529,8 +522,8 @@ class LayerHandlers:
             result["font_size"] = text_format.size()
             result["color"] = text_format.color().name()
             result["placement"] = str(settings.placement)
-            bg = copy_text_format_component(text_format, "background")
-            result["background_enabled"] = bg.enabled() if bg is not None else None
+            # background() is a reference into text_format, which the local keeps alive.
+            result["background_enabled"] = text_format.background().enabled()
         return result
 
     @command

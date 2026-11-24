@@ -1,4 +1,4 @@
-"""SIP member-ref lifetime guards (format().background/buffer/shadow/mask)."""
+"""SIP member-reference guards: refuse getters on temporaries, copy_member."""
 
 from unittest.mock import MagicMock
 
@@ -27,127 +27,98 @@ def layers(plugin_handlers):
         LOG_TAG = "test"
         iface = None
 
-    return Server(), plugin_handlers
+    return Server()
 
 
-def test_refuse_chained_background_enabled(sip_member_ref):
-    with pytest.raises(sip_member_ref.CommandError, match="background"):
-        sip_member_ref.refuse_unsafe_text_format_member_refs(
-            "print(layer.labeling().settings().format().background().enabled())"
-        )
+@pytest.mark.parametrize(
+    "code",
+    [
+        "print(layer.labeling().settings().format().background().enabled())",
+        "bg = settings.format().buffer()",
+        "settings.format().shadow()",
+        "settings.format().mask()",
+        "settings.format().dataDefinedProperties()",
+        "layer.labeling().settings().placementSettings().overlapHandling()",
+        "layer.labeling().settings().lineSettings()",
+        "layer.labeling().settings().pointSettings()",
+        "layer.labeling().settings().obstacleSettings()",
+        "layer.labeling().settings().thinningSettings()",
+        "layer.labeling().settings().dataDefinedProperties()",
+    ],
+)
+def test_refuses_getter_on_a_call_result(sip_member_ref, code):
+    with pytest.raises(sip_member_ref.CommandError, match="Refusing execute_code"):
+        sip_member_ref.refuse_unsafe_member_refs(code)
 
 
-def test_refuse_all_text_format_member_refs(sip_member_ref):
-    for component in ("buffer", "shadow", "mask", "dataDefinedProperties"):
-        with pytest.raises(sip_member_ref.CommandError, match="member-reference"):
-            sip_member_ref.refuse_unsafe_text_format_member_refs(
-                f"print(settings.format().{component}().enabled())"
-            )
+def test_refusal_names_the_call_and_the_fix(sip_member_ref):
+    with pytest.raises(sip_member_ref.CommandError) as err:
+        sip_member_ref.refuse_unsafe_member_refs("s.format().background().enabled()")
+    assert "s.format().background()" in str(err.value)
+    assert "copy_member(parent, 'background')" in str(err.value)
 
 
-def test_refuse_split_assignment_then_any_method(sip_member_ref):
-    code = (
-        "fmt = layer.labeling().settings().format()\n"
-        "bg = fmt.background()\n"
-        "print(bg.fillColor())\n"
-    )
-    with pytest.raises(sip_member_ref.CommandError, match="member-reference"):
-        sip_member_ref.refuse_unsafe_text_format_member_refs(code)
-
-
-def test_allows_palette_background(sip_member_ref):
-    sip_member_ref.refuse_unsafe_text_format_member_refs(
-        "print(widget.palette().background().color().name())"
-    )
-
-
-def test_allows_fresh_settings_construction(sip_member_ref):
-    code = (
-        "from qgis.core import QgsTextBackgroundSettings, QgsTextFormat\n"
-        "bg = QgsTextBackgroundSettings()\n"
-        "bg.setEnabled(True)\n"
-        "fmt = QgsTextFormat()\n"
-        "fmt.setBackground(bg)\n"
-    )
-    sip_member_ref.refuse_unsafe_text_format_member_refs(code)
+@pytest.mark.parametrize(
+    "code",
+    [
+        "fmt = settings.format()\nprint(fmt.background().enabled())\n",
+        "s = layer.labeling().settings()\ns.placementSettings().overlapHandling()\n",
+        "print(copy_member(settings.format(), 'background').enabled())",
+        "fmt = QgsTextFormat()\nbg = QgsTextBackgroundSettings()\nfmt.setBackground(bg)\n",
+        "print('{}'.format(1))",
+    ],
+)
+def test_allows_getter_on_a_bound_name(sip_member_ref, code):
+    sip_member_ref.refuse_unsafe_member_refs(code)
 
 
 def test_syntax_errors_are_left_for_exec(sip_member_ref):
-    sip_member_ref.refuse_unsafe_text_format_member_refs("def broken(")
+    sip_member_ref.refuse_unsafe_member_refs("def broken(")
 
 
-def test_copy_returns_none_for_null_sip_pointer(sip_member_ref, monkeypatch):
-    monkeypatch.setattr(sip_member_ref, "sip_pointer", lambda obj: None)
-    assert sip_member_ref.copy_text_format_component(MagicMock(), "background") is None
-
-
-def test_copy_returns_python_owned_instance(sip_member_ref, monkeypatch):
+def test_copy_member_returns_a_copy(sip_member_ref):
     class Bg:
         def __init__(self, other=None):
-            self._enabled = True if other is None else other._enabled
-
-        def enabled(self):
-            return self._enabled
+            self.on = True if other is None else other.on
 
     member = Bg()
-    fmt = MagicMock()
-    fmt.background.return_value = member
-    monkeypatch.setattr(sip_member_ref, "sip_pointer", lambda obj: 0x1000 if obj else None)
+    parent = MagicMock()
+    parent.background.return_value = member
 
-    copied = sip_member_ref.copy_text_format_component(fmt, "background")
+    copied = sip_member_ref.copy_member(parent, "background")
     assert copied is not member
     assert isinstance(copied, Bg)
-    assert copied.enabled() is True
+    assert copied.on is True
 
 
-def test_copy_rejects_unknown_component(sip_member_ref):
-    with pytest.raises(sip_member_ref.CommandError, match="Unknown text-format component"):
-        sip_member_ref.copy_text_format_component(MagicMock(), "nope")
+def test_copy_member_rejects_unknown_getter(sip_member_ref):
+    with pytest.raises(sip_member_ref.CommandError, match="Unknown member-reference getter"):
+        sip_member_ref.copy_member(MagicMock(), "nope")
 
 
-def test_execute_code_refuses_unsafe_probe_before_exec(system, plugin_handlers):
+def test_execute_code_refuses_before_exec(system, plugin_handlers):
     with pytest.raises(plugin_handlers.base.CommandError, match="background"):
-        system.execute_code(
-            "print(layer.labeling().settings().format().background().enabled())\n"
-        )
+        system.execute_code("print(layer.labeling().settings().format().background().enabled())\n")
 
 
-def test_execute_code_exposes_copy_helper(system):
-    result = system.execute_code(
-        "assert callable(copy_text_format_component)\n"
-        "print(copy_text_format_component(None, 'background'))\n"
-    )
+def test_execute_code_exposes_copy_member(system):
+    result = system.execute_code("print(callable(copy_member))\n")
     assert result["executed"] is True
-    assert result["stdout"].strip() == "None"
+    assert result["stdout"].strip() == "True"
 
 
-def test_get_layer_labeling_uses_owned_copy(layers, monkeypatch, plugin_handlers):
-    server, handlers = layers
+def test_get_layer_labeling_reports_background(layers, monkeypatch):
     layer = MagicMock()
     layer.labelsEnabled.return_value = True
-    labeling = MagicMock()
-    settings = MagicMock()
-    text_format = MagicMock()
-    text_format.size.return_value = 10
-    text_format.color.return_value.name.return_value = "#000000"
-    settings.format.return_value = text_format
+    settings = layer.labeling.return_value.settings.return_value
     settings.fieldName = "name"
     settings.isExpression = False
     settings.placement = "AroundPoint"
-    labeling.settings.return_value = settings
-    layer.labeling.return_value = labeling
-    monkeypatch.setattr(server, "_get_vector_layer", lambda layer_id: layer)
+    text_format = settings.format.return_value
+    text_format.size.return_value = 10
+    text_format.color.return_value.name.return_value = "#000000"
+    text_format.background.return_value.enabled.return_value = True
+    monkeypatch.setattr(layers, "_get_vector_layer", lambda layer_id: layer)
 
-    class Bg:
-        def enabled(self):
-            return True
-
-    monkeypatch.setattr(
-        handlers.layers,
-        "copy_text_format_component",
-        lambda fmt, component: Bg() if component == "background" else None,
-    )
-
-    result = server.get_layer_labeling("layer_1")
+    result = layers.get_layer_labeling("layer_1")
     assert result["background_enabled"] is True
-    text_format.background.assert_not_called()

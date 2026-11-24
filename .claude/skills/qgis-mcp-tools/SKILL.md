@@ -48,7 +48,7 @@ description: Reference for all qgis-mcp MCP tools, resources, and prompts (names
 | `get_algorithm_help` | Get Algorithm Help | readOnly | Algorithm parameters, outputs, description |
 | `create_processing_model` | Create Processing Model | - | Build a `.model3` workflow from a structured spec (inputs, steps, outputs); always saved into the QGIS user models folder and registered (numeric suffix on name collision); supports `@input` / `$step.OUTPUT` / `=expression` references |
 | `render_map` | Render Map | idempotent | Render canvas to inline image (60s, async+progress+logging) |
-| `execute_code` | Execute Code | destructive | Run arbitrary PyQGIS code (plugin cancels past `timeout` seconds, default 55, raising a tool error with the output so far; a script that raises is a tool error carrying the traceback; result carries `elapsed`; async+progress+logging). Refuses QgsTextFormat member-ref accessors (background/buffer/shadow/mask/dataDefinedProperties); injects `copy_text_format_component`; prefer `get_layer_labeling` for labels |
+| `execute_code` | Execute Code | destructive | Run arbitrary PyQGIS code (plugin cancels past `timeout` seconds, default 55, raising a tool error with the output so far; a script that raises is a tool error carrying the traceback; result carries `elapsed`; async+progress+logging). Refuses reference getters (e.g. `format().background()`) called on an unbound call result; injects `copy_member` |
 | `batch_commands` | Batch Commands | - | Multiple commands in one round-trip |
 | `list_layouts` | List Layouts | readOnly | List print layouts |
 | `export_layout` | Export Layout | idempotent | Export print layout to PDF/PNG/SVG |
@@ -111,7 +111,7 @@ description: Reference for all qgis-mcp MCP tools, resources, and prompts (names
 | `get_canvas_scale` | Get Canvas Scale | readOnly | Canvas scale, rotation and magnification factor |
 | `set_canvas_scale` | Set Canvas Scale | idempotent | Set canvas scale (denominator, e.g. 50000) and/or rotation (0–360°) |
 | `get_3d_screenshot` | Get 3D Screenshot | readOnly | Capture an **open** 3D Map View as an inline image (reuses its scene + camera via a layout 3D map item; optional pitch/heading/distance overrides). `get_canvas_screenshot` cannot grab the OpenGL view |
-| `get_layer_labeling` | Get Layer Labeling | readOnly | Labeling config of a vector layer: enabled, field, font size, color, placement, background_enabled (bool or null when a safe copy cannot be taken) |
+| `get_layer_labeling` | Get Layer Labeling | readOnly | Labeling config of a vector layer: enabled, field, font size, color, placement, background_enabled |
 | `set_layer_labeling` | Set Layer Labeling | - | Configure labels (`enabled`, `field_name`, `font_size`, `color`) |
 | `apply_style_qml` | Apply Style QML | - | Apply a QML style (file `path` or inline `qml`); previous style restored if QGIS loads another renderer |
 | `save_style_qml` | Save Style QML | - | Save a layer's style to a QML file |

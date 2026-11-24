@@ -32,10 +32,7 @@ from ..compat import MSG_INFO
 from ..constants import plugin_version
 from ..errors import CommandError
 from ..registry import command
-from ..sip_member_ref import (
-    copy_text_format_component,
-    refuse_unsafe_text_format_member_refs,
-)
+from ..sip_member_ref import copy_member, refuse_unsafe_member_refs
 
 
 class _CodeDeadline(Exception):
@@ -170,10 +167,8 @@ class SystemHandlers:
 
     @command
     def execute_code(self, code, timeout=None, **kwargs):
-        # AST gate: format().{background,buffer,shadow,mask}() are SIP member
-        # refs into a possibly temporary QgsTextFormat; method calls can
-        # SIGSEGV. try/except cannot catch a native fault.
-        refuse_unsafe_text_format_member_refs(code)
+        # A native crash cannot be caught once the script runs.
+        refuse_unsafe_member_refs(code)
         QgsMessageLog.logMessage(f"Executing code ({len(code)} chars)", self.LOG_TAG, MSG_INFO)
         budget = self._CODE_TIMEOUT if timeout is None else float(timeout)
         started = time.monotonic()
@@ -201,8 +196,7 @@ class SystemHandlers:
                 "QgsVectorLayer": QgsVectorLayer,
                 "QgsRasterLayer": QgsRasterLayer,
                 "QgsCoordinateReferenceSystem": QgsCoordinateReferenceSystem,
-                # Owned copies of format().background/buffer/shadow/mask.
-                "copy_text_format_component": copy_text_format_component,
+                "copy_member": copy_member,
             }
 
             compiled = compile(code, self._CODE_FILENAME, "exec")

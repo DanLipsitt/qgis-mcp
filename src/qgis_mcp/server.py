@@ -1932,17 +1932,17 @@ async def render_map(
     title="Execute Code",
     annotations=ToolAnnotations(destructiveHint=True),
     description="Execute arbitrary PyQGIS code. Use for operations not covered by other tools. "
-    "Has access to QgsProject, iface, core QGIS classes, and copy_text_format_component. "
+    "Has access to QgsProject, iface, core QGIS classes, and copy_member. "
     "Returns stdout/stderr and elapsed seconds. timeout: seconds before the script is cancelled "
     "(default 55); a script that runs past it comes back with timed_out=True and the output "
     "printed so far, and its side effects stand. Raise timeout or split bulk work into several "
     "calls; QGIS is unresponsive while a script runs. A single blocking call (time.sleep, GDAL) "
     "cannot be interrupted before it returns. A script that raises or times out is a tool error "
-    "carrying the traceback and output so far. Do not call "
-    "format().background/buffer/shadow/mask/dataDefinedProperties() (SIP member refs into a "
-    "possibly temporary QgsTextFormat; method calls can SIGSEGV). The plugin refuses those "
-    "scripts before exec; use get_layer_labeling or "
-    "copy_text_format_component(fmt, 'background') then normal methods on the copy.",
+    "carrying the traceback and output so far. Getters that return a C++ reference into their "
+    "parent (QgsTextFormat.background/buffer/shadow/mask, QgsPalLayerSettings.placementSettings "
+    "and similar) crash QGIS when called on an unbound call result such as "
+    "settings.format().background(); the plugin refuses such scripts. Bind the parent to a "
+    "variable first, or use copy_member(parent, 'background').",
 )
 async def execute_code(
     ctx: Context, code: str, timeout: int | None = None, instance: str | None = None
@@ -2025,8 +2025,7 @@ async def set_canvas_scale(
     title="Get Layer Labeling",
     annotations=ToolAnnotations(readOnlyHint=True),
     description="Get the labeling configuration of a vector layer: enabled state, field, "
-    "font size, color, placement, and background_enabled (bool or null when a safe copy "
-    "cannot be taken). Prefer this over execute_code probes of format().background().",
+    "font size, color, placement, and whether the text background is enabled.",
     structured_output=True,
 )
 async def get_layer_labeling(
