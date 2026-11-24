@@ -67,7 +67,6 @@ This project connects [QGIS](https://qgis.org/) to [Claude AI](https://claude.ai
 - Write clear commit messages.
 - Update docs if behavior changes.
 - Be cautious when using `execute_code` (it runs arbitrary PyQGIS).
-- Never call `labeling().settings().format().background().enabled()` (or other methods on `format().background()`): a null SIP wrapper can SIGSEGV the GUI. Use `get_layer_labeling` or `safe_text_background_enabled`; the plugin refuses those probes in `execute_code`.
 
 ## Reporting Issues
 
