@@ -516,11 +516,14 @@ class LayerHandlers:
         labeling = layer.labeling()
         if labeling:
             settings = labeling.settings()
+            text_format = settings.format()
             result["field_name"] = settings.fieldName
             result["is_expression"] = settings.isExpression
-            result["font_size"] = settings.format().size()
-            result["color"] = settings.format().color().name()
+            result["font_size"] = text_format.size()
+            result["color"] = text_format.color().name()
             result["placement"] = str(settings.placement)
+            # background() is a reference into text_format, which the local keeps alive.
+            result["background_enabled"] = text_format.background().enabled()
         return result
 
     @command

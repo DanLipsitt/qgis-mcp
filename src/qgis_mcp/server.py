@@ -1937,7 +1937,12 @@ async def render_map(
     "past it comes back with timed_out=True and the output printed so far, and its side effects "
     "stand. Raise timeout or split bulk work into several calls; QGIS is unresponsive while a "
     "script runs. A single blocking call (time.sleep, GDAL) cannot be interrupted before it returns. "
-    "A script that raises or times out is a tool error carrying the traceback and output so far.",
+    "A script that raises or times out is a tool error carrying the traceback and output so far. "
+    "copy_member(parent, name) is also available. Getters that return a C++ reference into their "
+    "parent (QgsTextFormat.background/buffer/shadow/mask, QgsPalLayerSettings.placementSettings "
+    "and similar) crash QGIS when called on an unbound call result such as "
+    "settings.format().background(); the plugin refuses such scripts. Bind the parent to a "
+    "variable first, or use copy_member(parent, 'background').",
 )
 async def execute_code(
     ctx: Context, code: str, timeout: int | None = None, instance: str | None = None
@@ -2019,7 +2024,8 @@ async def set_canvas_scale(
 @mcp.tool(
     title="Get Layer Labeling",
     annotations=ToolAnnotations(readOnlyHint=True),
-    description="Get the labeling configuration of a vector layer: enabled state, field, font size, color.",
+    description="Get the labeling configuration of a vector layer: enabled state, field, font size, color, "
+    "placement, and whether the text background is enabled.",
     structured_output=True,
 )
 async def get_layer_labeling(
