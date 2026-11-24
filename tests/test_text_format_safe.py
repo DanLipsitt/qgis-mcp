@@ -1,4 +1,4 @@
-"""QGIS 4.2.x text-background probe guards (null QgsTextBackgroundSettings SIGSEGV)."""
+"""Guards against native crashes from null QgsTextBackgroundSettings SIP wrappers."""
 
 from unittest.mock import MagicMock
 
@@ -45,7 +45,7 @@ def test_refuse_split_assignment_then_enabled(text_format_safe):
         "bg = fmt.background()\n"
         "print(bg.enabled())\n"
     )
-    with pytest.raises(text_format_safe.CommandError, match="SIGSEGV"):
+    with pytest.raises(text_format_safe.CommandError, match="background"):
         text_format_safe.refuse_unsafe_text_background_access(code)
 
 

@@ -1940,9 +1940,9 @@ async def render_map(
     "cannot be interrupted before it returns. A script that raises or times out is a tool error "
     "carrying the traceback and output so far. Do not call "
     "labeling().settings().format().background().enabled() (or other methods on "
-    "format().background()): on QGIS 4.2.x that accessor can be an invalid C++ object and "
-    "SIGSEGVs the GUI (uncaught from Python). The plugin refuses such scripts before exec; "
-    "use get_layer_labeling or safe_text_background_enabled(text_format) instead.",
+    "format().background()): that accessor can wrap an invalid C++ object and SIGSEGV the GUI "
+    "(uncaught from Python). The plugin refuses such scripts before exec; use "
+    "get_layer_labeling or safe_text_background_enabled(text_format) instead.",
 )
 async def execute_code(
     ctx: Context, code: str, timeout: int | None = None, instance: str | None = None
@@ -2025,8 +2025,8 @@ async def set_canvas_scale(
     title="Get Layer Labeling",
     annotations=ToolAnnotations(readOnlyHint=True),
     description="Get the labeling configuration of a vector layer: enabled state, field, "
-    "font size, color, placement, and background_enabled (bool or null when unsafe to probe "
-    "on QGIS 4.2.x). Prefer this over execute_code probes of format().background().",
+    "font size, color, placement, and background_enabled (bool or null when unsafe to probe). "
+    "Prefer this over execute_code probes of format().background().",
     structured_output=True,
 )
 async def get_layer_labeling(

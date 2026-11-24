@@ -510,10 +510,9 @@ class LayerHandlers:
     def get_layer_labeling(self, layer_id, **kwargs):
         """Get labeling configuration for a vector layer.
 
-        Never calls ``format().background().enabled()`` unguarded: on QGIS
-        4.2.x that path can SIGSEGV. ``background_enabled`` is filled via
-        ``safe_text_background_enabled`` and is ``None`` when the probe is
-        unsafe.
+        Never calls ``format().background().enabled()`` unguarded (null SIP
+        wrappers can SIGSEGV). ``background_enabled`` comes from
+        ``safe_text_background_enabled`` and is ``None`` when unsafe to probe.
         """
         layer = self._get_vector_layer(layer_id)
         result = {

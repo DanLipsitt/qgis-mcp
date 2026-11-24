@@ -1,10 +1,10 @@
-"""Guards around QgsTextFormat.background() for QGIS 4.2.x.
+"""Guards around QgsTextFormat.background() for native-crash safety.
 
-On QGIS final-4_2_3 (observed 2026-11-23 on macOS ARM),
 ``labeling().settings().format().background()`` can return a SIP wrapper
-whose C++ pointer is null. Calling ``.enabled()`` (or other methods) then
-SIGSEGVs the GUI process; Python ``try``/``except`` cannot catch it because
-the fault is native.
+whose C++ pointer is null. Calling methods such as ``.enabled()`` then
+SIGSEGVs the GUI process; Python ``try``/``except`` cannot catch a native
+fault. Observed on QGIS 4.2.x; the same pattern is unsafe wherever the
+wrapper can be null, so these helpers are used on every supported build.
 
 This module:
 
@@ -20,8 +20,8 @@ import ast
 
 from .errors import CommandError
 
-# Methods agents commonly call on QgsTextBackgroundSettings. Calling any of
-# them on a null wrapper is a native crash on the affected builds.
+# Methods agents commonly call on QgsTextBackgroundSettings. Any of them on a
+# null wrapper is a native crash when the SIP object is invalid.
 _BACKGROUND_METHODS = frozenset(
     {
         "enabled",
@@ -59,8 +59,8 @@ _BACKGROUND_METHODS = frozenset(
 
 _REFUSAL = (
     "Refusing execute_code that probes QgsTextFormat.background() (or methods "
-    "on its return value). On QGIS 4.2.x that accessor can return an invalid "
-    "C++ object; calling .enabled() SIGSEGVs the whole GUI and is not "
+    "on its return value). That accessor can return an invalid C++ object; "
+    "calling .enabled() (and similar) can SIGSEGV the whole GUI and is not "
     "catchable from Python. Use get_layer_labeling for label config, or the "
     "injected safe_text_background_enabled(text_format) helper. To *set* a "
     "background, construct a fresh QgsTextBackgroundSettings and pass it to "
@@ -115,7 +115,7 @@ def safe_text_background_enabled(text_format) -> bool | None:
     """Return whether a text background is enabled, or None if unsafe to ask.
 
     Never calls methods on a background wrapper whose SIP pointer is null —
-    that path SIGSEGVs on QGIS 4.2.x. Callers must treat None as "unknown".
+    that path can SIGSEGV. Callers must treat None as "unknown".
     """
     if text_format is None:
         return None
@@ -222,7 +222,8 @@ def refuse_unsafe_text_background_access(code: str) -> None:
 
     Catches both chained forms (``format().background().enabled()``) and the
     split form (``fmt = format(); bg = fmt.background(); bg.enabled()``).
-    Syntax errors are left for ``exec`` to report.
+    Applied on every supported QGIS version: a null wrapper is a native crash
+    wherever it occurs. Syntax errors are left for ``exec`` to report.
     """
     try:
         tree = ast.parse(code)
