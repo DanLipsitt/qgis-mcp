@@ -34,6 +34,7 @@ from ..compat import (
 )
 from ..errors import CommandError
 from ..registry import command
+from ..text_format_safe import safe_text_background_enabled
 from ..wire import zip_strict
 
 _TRUE = ("true", "1", "yes", "on")
@@ -507,7 +508,13 @@ class LayerHandlers:
 
     @command
     def get_layer_labeling(self, layer_id, **kwargs):
-        """Get labeling configuration for a vector layer."""
+        """Get labeling configuration for a vector layer.
+
+        Never calls ``format().background().enabled()`` unguarded: on QGIS
+        4.2.x that path can SIGSEGV. ``background_enabled`` is filled via
+        ``safe_text_background_enabled`` and is ``None`` when the probe is
+        unsafe.
+        """
         layer = self._get_vector_layer(layer_id)
         result = {
             "layer_id": layer_id,
@@ -516,11 +523,14 @@ class LayerHandlers:
         labeling = layer.labeling()
         if labeling:
             settings = labeling.settings()
+            text_format = settings.format()
             result["field_name"] = settings.fieldName
             result["is_expression"] = settings.isExpression
-            result["font_size"] = settings.format().size()
-            result["color"] = settings.format().color().name()
+            result["font_size"] = text_format.size()
+            result["color"] = text_format.color().name()
             result["placement"] = str(settings.placement)
+            # Optional: None means "could not safely probe" (do not treat as False).
+            result["background_enabled"] = safe_text_background_enabled(text_format)
         return result
 
     @command

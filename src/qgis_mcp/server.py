@@ -1932,12 +1932,17 @@ async def render_map(
     title="Execute Code",
     annotations=ToolAnnotations(destructiveHint=True),
     description="Execute arbitrary PyQGIS code. Use for operations not covered by other tools. "
-    "Has access to QgsProject, iface, and core QGIS classes. Returns stdout/stderr and elapsed "
-    "seconds. timeout: seconds before the script is cancelled (default 55); a script that runs "
-    "past it comes back with timed_out=True and the output printed so far, and its side effects "
-    "stand. Raise timeout or split bulk work into several calls; QGIS is unresponsive while a "
-    "script runs. A single blocking call (time.sleep, GDAL) cannot be interrupted before it returns. "
-    "A script that raises or times out is a tool error carrying the traceback and output so far.",
+    "Has access to QgsProject, iface, core QGIS classes, and safe_text_background_enabled. "
+    "Returns stdout/stderr and elapsed seconds. timeout: seconds before the script is cancelled "
+    "(default 55); a script that runs past it comes back with timed_out=True and the output "
+    "printed so far, and its side effects stand. Raise timeout or split bulk work into several "
+    "calls; QGIS is unresponsive while a script runs. A single blocking call (time.sleep, GDAL) "
+    "cannot be interrupted before it returns. A script that raises or times out is a tool error "
+    "carrying the traceback and output so far. Do not call "
+    "labeling().settings().format().background().enabled() (or other methods on "
+    "format().background()): on QGIS 4.2.x that accessor can be an invalid C++ object and "
+    "SIGSEGVs the GUI (uncaught from Python). The plugin refuses such scripts before exec; "
+    "use get_layer_labeling or safe_text_background_enabled(text_format) instead.",
 )
 async def execute_code(
     ctx: Context, code: str, timeout: int | None = None, instance: str | None = None
@@ -2019,7 +2024,9 @@ async def set_canvas_scale(
 @mcp.tool(
     title="Get Layer Labeling",
     annotations=ToolAnnotations(readOnlyHint=True),
-    description="Get the labeling configuration of a vector layer: enabled state, field, font size, color.",
+    description="Get the labeling configuration of a vector layer: enabled state, field, "
+    "font size, color, placement, and background_enabled (bool or null when unsafe to probe "
+    "on QGIS 4.2.x). Prefer this over execute_code probes of format().background().",
     structured_output=True,
 )
 async def get_layer_labeling(

@@ -48,7 +48,7 @@ description: Reference for all qgis-mcp MCP tools, resources, and prompts (names
 | `get_algorithm_help` | Get Algorithm Help | readOnly | Algorithm parameters, outputs, description |
 | `create_processing_model` | Create Processing Model | - | Build a `.model3` workflow from a structured spec (inputs, steps, outputs); always saved into the QGIS user models folder and registered (numeric suffix on name collision); supports `@input` / `$step.OUTPUT` / `=expression` references |
 | `render_map` | Render Map | idempotent | Render canvas to inline image (60s, async+progress+logging) |
-| `execute_code` | Execute Code | destructive | Run arbitrary PyQGIS code (plugin cancels past `timeout` seconds, default 55, raising a tool error with the output so far; a script that raises is a tool error carrying the traceback; result carries `elapsed`; async+progress+logging) |
+| `execute_code` | Execute Code | destructive | Run arbitrary PyQGIS code (plugin cancels past `timeout` seconds, default 55, raising a tool error with the output so far; a script that raises is a tool error carrying the traceback; result carries `elapsed`; async+progress+logging). Refuses `format().background()` probes (QGIS 4.2.x SIGSEGV); injects `safe_text_background_enabled`; prefer `get_layer_labeling` for labels |
 | `batch_commands` | Batch Commands | - | Multiple commands in one round-trip |
 | `list_layouts` | List Layouts | readOnly | List print layouts |
 | `export_layout` | Export Layout | idempotent | Export print layout to PDF/PNG/SVG |
@@ -111,7 +111,7 @@ description: Reference for all qgis-mcp MCP tools, resources, and prompts (names
 | `get_canvas_scale` | Get Canvas Scale | readOnly | Canvas scale, rotation and magnification factor |
 | `set_canvas_scale` | Set Canvas Scale | idempotent | Set canvas scale (denominator, e.g. 50000) and/or rotation (0–360°) |
 | `get_3d_screenshot` | Get 3D Screenshot | readOnly | Capture an **open** 3D Map View as an inline image (reuses its scene + camera via a layout 3D map item; optional pitch/heading/distance overrides). `get_canvas_screenshot` cannot grab the OpenGL view |
-| `get_layer_labeling` | Get Layer Labeling | readOnly | Labeling config of a vector layer: enabled, field, font size, color |
+| `get_layer_labeling` | Get Layer Labeling | readOnly | Labeling config of a vector layer: enabled, field, font size, color, placement, background_enabled (bool or null when unsafe to probe on QGIS 4.2.x) |
 | `set_layer_labeling` | Set Layer Labeling | - | Configure labels (`enabled`, `field_name`, `font_size`, `color`) |
 | `apply_style_qml` | Apply Style QML | - | Apply a QML style (file `path` or inline `qml`); previous style restored if QGIS loads another renderer |
 | `save_style_qml` | Save Style QML | - | Save a layer's style to a QML file |

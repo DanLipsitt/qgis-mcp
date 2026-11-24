@@ -32,6 +32,10 @@ from ..compat import MSG_INFO
 from ..constants import plugin_version
 from ..errors import CommandError
 from ..registry import command
+from ..text_format_safe import (
+    refuse_unsafe_text_background_access,
+    safe_text_background_enabled,
+)
 
 
 class _CodeDeadline(Exception):
@@ -166,6 +170,9 @@ class SystemHandlers:
 
     @command
     def execute_code(self, code, timeout=None, **kwargs):
+        # AST gate before exec: format().background().enabled() can SIGSEGV
+        # QGIS 4.2.x (null QgsTextBackgroundSettings); try/except cannot catch it.
+        refuse_unsafe_text_background_access(code)
         QgsMessageLog.logMessage(f"Executing code ({len(code)} chars)", self.LOG_TAG, MSG_INFO)
         budget = self._CODE_TIMEOUT if timeout is None else float(timeout)
         started = time.monotonic()
@@ -193,6 +200,8 @@ class SystemHandlers:
                 "QgsVectorLayer": QgsVectorLayer,
                 "QgsRasterLayer": QgsRasterLayer,
                 "QgsCoordinateReferenceSystem": QgsCoordinateReferenceSystem,
+                # Prefer this over format().background().enabled() on QGIS 4.2.x.
+                "safe_text_background_enabled": safe_text_background_enabled,
             }
 
             compiled = compile(code, self._CODE_FILENAME, "exec")
